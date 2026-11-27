@@ -20,7 +20,7 @@ const TermsConditions = () => {
           <span className="policy-breadcrumb-current">Terms &amp; Conditions</span>
         </div>
 
-        <article className="policy-container">
+        <article className="policy-container reveal-on-scroll">
           <header className="policy-header">
             <span className="policy-brand-tag">The Gifted Pencil</span>
             <h1 className="policy-title">TERMS &amp; CONDITIONS</h1>

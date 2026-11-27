@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. API pass-through: do not rewrite /api requests (forward to backend)
+  RewriteRule ^api/ - [L]
+
+  # 2. Existing files and directories: serve directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 3. Single SPA fallback: all routes serve /index.html
+  RewriteRule . /index.html [L]
+</IfModule>

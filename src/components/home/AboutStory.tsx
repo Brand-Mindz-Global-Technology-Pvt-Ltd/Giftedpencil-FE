@@ -10,16 +10,18 @@ const AboutStory = () => {
     >
       <div className="about-story-container">
         {/* Left: Girl Journaling Image in Rounded Arch/Capsule */}
-        <div className="about-story-image-wrap">
+        <div className="about-story-image-wrap reveal-scale">
           <img
             src={girlJournalImg}
             alt="Young woman writing in journal"
             className="about-story-image"
+            data-parallax-speed="0.10"
+            data-parallax-scale="0.03"
           />
         </div>
 
         {/* Center: Story & Mission Content */}
-        <div className="about-story-content">
+        <div className="about-story-content reveal-on-scroll">
           <div className="about-badge">
             <span className="about-badge-line" aria-hidden="true" />
             <span className="about-badge-text">About The Gifted Pencil</span>
@@ -38,7 +40,7 @@ const AboutStory = () => {
         </div>
 
         {/* Right: Three Key Highlight Items */}
-        <div className="about-story-highlights-wrap">
+        <div className="about-story-highlights-wrap reveal-slide-right" data-parallax-speed="-0.06">
           <div className="about-story-divider hide-mobile" aria-hidden="true" />
           <div className="about-story-highlights">
             {/* Highlight 1: Creative Journals */}

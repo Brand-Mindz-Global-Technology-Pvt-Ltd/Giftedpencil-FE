@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Search, Menu, X } from 'lucide-react'
+import { Search, Menu, X, ShoppingCart, User, Heart, Home, ShoppingBag, BookOpen, Mail } from 'lucide-react'
+import { useCart } from '../../../context/CartContext'
+import { useWishlist } from '../../../context/WishlistContext'
 import logoImg from '../../../assets/Logo.jpg'
 
-type NavSection = 'home' | 'about' | 'contact' | null
+type NavSection = 'home' | 'shop' | 'about' | 'contact' | null
 
 const Header = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { itemCount } = useCart()
+  const { wishlistCount } = useWishlist()
+
   const isHome = location.pathname === '/'
+  const isShop = location.pathname === '/shop' || location.pathname.startsWith('/product-details')
+  const isContact = location.pathname === '/contact' || location.pathname === '/contact-us'
+  const isAbout = location.pathname === '/about' || location.pathname === '/about-us'
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -19,14 +27,20 @@ const Header = () => {
   const [scrolledSection, setScrolledSection] = useState<NavSection | null>(null)
 
   // Derived active section based on route, hash, click, or scroll
-  const activeSection: NavSection = !isHome
-    ? null
-    : clickedSection ||
-      (location.hash === '#our-story'
-        ? 'about'
-        : location.hash === '#footer'
-          ? 'contact'
-          : scrolledSection || 'home')
+  const activeSection: NavSection = isShop
+    ? 'shop'
+    : isAbout
+      ? 'about'
+      : isContact
+        ? 'contact'
+        : !isHome
+          ? null
+          : clickedSection ||
+            (location.hash === '#our-story'
+              ? 'about'
+              : location.hash === '#footer'
+                ? 'contact'
+                : scrolledSection || 'home')
 
   const [indicatorStyle, setIndicatorStyle] = useState({
     left: 0,
@@ -36,6 +50,7 @@ const Header = () => {
 
   const navListRef = useRef<HTMLUListElement | null>(null)
   const homeRef = useRef<HTMLAnchorElement | null>(null)
+  const shopRef = useRef<HTMLAnchorElement | null>(null)
   const aboutRef = useRef<HTMLAnchorElement | null>(null)
   const contactRef = useRef<HTMLAnchorElement | null>(null)
   const isClickScrollRef = useRef(false)
@@ -49,16 +64,17 @@ const Header = () => {
     setIsMobileMenuOpen(false)
   }
 
-  // Update sliding green underline position and width using requestAnimationFrame
+  // Update sliding indicator position and width using requestAnimationFrame
   useEffect(() => {
     const measureIndicator = () => {
-      if (!isHome || !activeSection || !navListRef.current) {
+      if ((!isHome && !isContact && !isAbout && !isShop) || !activeSection || !navListRef.current) {
         setIndicatorStyle((prev) => (prev.opacity === 0 ? prev : { ...prev, opacity: 0 }))
         return
       }
 
       let targetEl: HTMLAnchorElement | null = null
       if (activeSection === 'home') targetEl = homeRef.current
+      else if (activeSection === 'shop') targetEl = shopRef.current
       else if (activeSection === 'about') targetEl = aboutRef.current
       else if (activeSection === 'contact') targetEl = contactRef.current
 
@@ -88,7 +104,7 @@ const Header = () => {
       cancelAnimationFrame(rafId)
       window.removeEventListener('resize', measureIndicator)
     }
-  }, [activeSection, isHome])
+  }, [activeSection, isHome, isContact, isAbout, isShop])
 
   // Scroll spy to update active indicator as user scrolls
   useEffect(() => {
@@ -171,17 +187,25 @@ const Header = () => {
     }
   }
 
+  const handleShopClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    triggerClickScroll('shop')
+
+    if (isShop) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      navigate('/shop')
+    }
+  }
+
   const handleAboutClick = (e: React.MouseEvent) => {
     e.preventDefault()
     triggerClickScroll('about')
 
-    if (isHome) {
-      const storyEl = document.getElementById('our-story')
-      if (storyEl) {
-        storyEl.scrollIntoView({ behavior: 'smooth' })
-      }
+    if (isAbout) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } else {
-      navigate('/#our-story', { state: { scrollTo: 'our-story' } })
+      navigate('/about')
     }
   }
 
@@ -189,13 +213,10 @@ const Header = () => {
     e.preventDefault()
     triggerClickScroll('contact')
 
-    if (isHome) {
-      const footerEl = document.getElementById('footer')
-      if (footerEl) {
-        footerEl.scrollIntoView({ behavior: 'smooth' })
-      }
+    if (isContact) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } else {
-      navigate('/#footer', { state: { scrollTo: 'footer' } })
+      navigate('/contact')
     }
   }
 
@@ -236,18 +257,32 @@ const Header = () => {
                   className={`nav-link ${activeSection === 'home' ? 'active' : ''}`}
                   onClick={handleHomeClick}
                 >
-                  Home
+                  <Home size={17} strokeWidth={1.75} className="nav-item-icon" aria-hidden="true" />
+                  <span>Home</span>
+                </a>
+              </li>
+
+              <li className="nav-item">
+                <a
+                  ref={shopRef}
+                  href="/shop"
+                  className={`nav-link ${activeSection === 'shop' ? 'active' : ''}`}
+                  onClick={handleShopClick}
+                >
+                  <ShoppingBag size={17} strokeWidth={1.75} className="nav-item-icon" aria-hidden="true" />
+                  <span>Shop</span>
                 </a>
               </li>
 
               <li className="nav-item">
                 <a
                   ref={aboutRef}
-                  href="/#our-story"
+                  href="/about"
                   className={`nav-link ${activeSection === 'about' ? 'active' : ''}`}
                   onClick={handleAboutClick}
                 >
-                  About Us
+                  <BookOpen size={17} strokeWidth={1.75} className="nav-item-icon" aria-hidden="true" />
+                  <span>About Us</span>
                 </a>
               </li>
 
@@ -258,7 +293,8 @@ const Header = () => {
                   className={`nav-link ${activeSection === 'contact' ? 'active' : ''}`}
                   onClick={handleContactClick}
                 >
-                  Contact Us
+                  <Mail size={17} strokeWidth={1.75} className="nav-item-icon" aria-hidden="true" />
+                  <span>Contact Us</span>
                 </a>
               </li>
 
@@ -284,7 +320,10 @@ const Header = () => {
                 className="header-search-form"
                 onSubmit={(e) => {
                   e.preventDefault()
-                  setIsSearchOpen(false)
+                  if (searchQuery.trim()) {
+                    navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`)
+                    setIsSearchOpen(false)
+                  }
                 }}
               >
                 <input
@@ -315,6 +354,35 @@ const Header = () => {
               </button>
             )}
           </div>
+
+          {/* User / Account Icon */}
+          <Link
+            to="/profile"
+            className={`header-icon-btn user-btn ${location.pathname === '/profile' ? 'active' : ''}`}
+            aria-label="My Profile"
+          >
+            <User size={20} strokeWidth={1.8} />
+          </Link>
+
+          {/* Wishlist Icon */}
+          <Link
+            to="/wishlist"
+            className={`header-icon-btn wishlist-btn ${location.pathname === '/wishlist' ? 'active' : ''}`}
+            aria-label={`View Wishlist (${wishlistCount} ${wishlistCount === 1 ? 'item' : 'items'})`}
+          >
+            <Heart size={20} strokeWidth={1.8} />
+            <span className="cart-badge">{wishlistCount}</span>
+          </Link>
+
+          {/* Cart Icon */}
+          <Link
+            to="/cart"
+            className="header-icon-btn cart-btn"
+            aria-label={`View Cart (${itemCount} ${itemCount === 1 ? 'item' : 'items'})`}
+          >
+            <ShoppingCart size={20} strokeWidth={1.8} />
+            <span className="cart-badge">{itemCount}</span>
+          </Link>
         </div>
       </div>
 
@@ -344,16 +412,28 @@ const Header = () => {
                     className={`mobile-nav-link ${activeSection === 'home' ? 'active' : ''}`}
                     onClick={handleHomeClick}
                   >
-                    Home
+                    <Home size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>Home</span>
                   </a>
                 </li>
                 <li>
+                  <Link
+                    to="/shop"
+                    className={`mobile-nav-link ${location.pathname === '/shop' ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    <ShoppingBag size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>Shop</span>
+                  </Link>
+                </li>
+                <li>
                   <a
-                    href="/#our-story"
+                    href="/about"
                     className={`mobile-nav-link ${activeSection === 'about' ? 'active' : ''}`}
                     onClick={handleAboutClick}
                   >
-                    About Us
+                    <BookOpen size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>About Us</span>
                   </a>
                 </li>
                 <li>
@@ -362,8 +442,39 @@ const Header = () => {
                     className={`mobile-nav-link ${activeSection === 'contact' ? 'active' : ''}`}
                     onClick={handleContactClick}
                   >
-                    Contact Us
+                    <Mail size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>Contact Us</span>
                   </a>
+                </li>
+                <li>
+                  <Link
+                    to="/profile"
+                    className={`mobile-nav-link ${location.pathname === '/profile' ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    <User size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>My Account</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/wishlist"
+                    className={`mobile-nav-link ${location.pathname === '/wishlist' ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    <Heart size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>Wishlist ({wishlistCount})</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/cart"
+                    className="mobile-nav-link"
+                    onClick={closeMobileMenu}
+                  >
+                    <ShoppingCart size={18} strokeWidth={1.75} className="mobile-nav-icon" aria-hidden="true" />
+                    <span>Cart ({itemCount})</span>
+                  </Link>
                 </li>
               </ul>
             </nav>

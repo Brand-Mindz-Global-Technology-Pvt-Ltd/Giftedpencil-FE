@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Heart, X, Minus, Plus, Loader2, AlertCircle } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Heart, X, Minus, Plus, Loader2, AlertCircle, ShoppingCart } from 'lucide-react'
 import {
   getProducts,
   placeOrder,
   type SavedOrder,
 } from '../../services/api'
-import product1 from '../../assets/product/product-1.png'
-import product2 from '../../assets/product/product-2.png'
-import product3 from '../../assets/product/product-3.png'
-import product4 from '../../assets/product/product-4.png'
+import { useCart } from '../../context/CartContext'
+import { useWishlist } from '../../context/WishlistContext'
+import { useAuth } from '../../context/AuthContext'
+import { resolveProductImage } from '../../utils/productImages'
 
 interface ProductItem {
   id: number
@@ -21,20 +21,6 @@ interface ProductItem {
   image: string
 }
 
-// Map database image filenames (e.g. "product-1.png") to original imported assets
-const PRODUCT_IMAGE_MAP: Record<string, string> = {
-  'product-1.png': product1,
-  'product-2.png': product2,
-  'product-3.png': product3,
-  'product-4.png': product4,
-}
-
-const resolveProductImage = (imageFilename: string | null | undefined): string => {
-  if (!imageFilename) return product1
-  const cleanName = imageFilename.split(/[/\\]/).pop() || imageFilename
-  return PRODUCT_IMAGE_MAP[cleanName] || product1
-}
-
 interface FormErrors {
   name?: string
   phone?: string
@@ -43,9 +29,11 @@ interface FormErrors {
 
 const Products = () => {
   const navigate = useNavigate()
-  const [wishlist, setWishlist] = useState<number[]>([])
+  const { addToCart } = useCart()
+  const { isInWishlist, toggleWishlist } = useWishlist()
+  const { isAuthenticated } = useAuth()
 
-  // Products state derived strictly from the backend GET /api/products API
+  // Products state derived from backend GET /api/products with graceful fallback
   const [products, setProducts] = useState<ProductItem[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -75,12 +63,9 @@ const Products = () => {
           // Map database fields directly: id, name, price, description, and resolve image filename
           const mappedProducts: ProductItem[] = apiData.map((item) => {
             const cleanName = String(item.name || '').trim()
-            const slug = cleanName
-              ? cleanName
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, '-')
-                  .replace(/(^-|-$)/g, '')
-              : 'the-gifted-pencil'
+            const slug = (item.slug && String(item.slug).trim())
+              ? String(item.slug).trim()
+              : (item as any).slug || 'the-gifted-pencil'
 
             return {
               id: Number(item.id),
@@ -104,12 +89,12 @@ const Products = () => {
         }
       } catch (err: unknown) {
         if (!isMounted) return
-        const message =
-          err instanceof Error && err.message
+        const msg =
+          err instanceof Error
             ? err.message
-            : 'Unable to connect to product service. Please try again later.'
-        setApiError(message)
+            : 'Unable to load products. Please check your connection or server.'
         setProducts([])
+        setApiError(msg)
       } finally {
         if (isMounted) {
           setIsLoading(false)
@@ -158,11 +143,20 @@ const Products = () => {
     }
   }, [selectedProduct])
 
-  const toggleWishlist = (e: React.MouseEvent, id: number) => {
+  const handleToggleWishlist = (e: React.MouseEvent, product: ProductItem) => {
     e.stopPropagation()
-    setWishlist((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/' } })
+      return
+    }
+    toggleWishlist({
+      id: product.id,
+      title: product.name,
+      description: product.description,
+      price: product.price,
+      image: product.image,
+      slug: product.slug,
+    })
   }
 
   const handleCardClick = (slug: string) => {
@@ -252,7 +246,7 @@ const Products = () => {
     <section className="products-section" aria-label="Our Products">
       <div className="products-container">
         {/* Section Heading */}
-        <div className="products-header">
+        <div className="products-header reveal-on-scroll">
           <span className="products-header-line" aria-hidden="true" />
           <h2 className="products-title">Our Products</h2>
           <span className="products-header-line" aria-hidden="true" />
@@ -290,11 +284,10 @@ const Products = () => {
         {!isLoading && !apiError && products.length > 0 && (
           <div className="products-grid single-product">
             {products.map((product) => {
-              const isWishlisted = wishlist.includes(product.id)
               return (
                 <div
                   key={product.id}
-                  className="product-card"
+                  className="product-card reveal-scale"
                   onClick={() => handleCardClick(product.slug)}
                   role="button"
                   tabIndex={0}
@@ -309,10 +302,10 @@ const Products = () => {
                   {/* Wishlist Button */}
                   <button
                     type="button"
-                    className={`product-wishlist-btn ${isWishlisted ? 'active' : ''}`}
-                    onClick={(e) => toggleWishlist(e, product.id)}
+                    className={`product-wishlist-btn ${isInWishlist(product.id) ? 'active' : ''}`}
+                    onClick={(e) => handleToggleWishlist(e, product)}
                     aria-label={
-                      isWishlisted
+                      isInWishlist(product.id)
                         ? `Remove ${product.name} from wishlist`
                         : `Add ${product.name} to wishlist`
                     }
@@ -320,23 +313,37 @@ const Products = () => {
                     <Heart
                       size={18}
                       strokeWidth={1.8}
-                      fill={isWishlisted ? 'var(--color-olive-dark)' : 'none'}
+                      fill={isInWishlist(product.id) ? '#7E3540' : 'none'}
                     />
                   </button>
 
                   {/* Product Image Frame */}
                   <div className="product-image-container">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="product-image"
-                      loading="lazy"
-                    />
+                    <Link
+                      to={`/product-details/${product.slug}`}
+                      className="product-image-link"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`View ${product.name} details`}
+                    >
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="product-image"
+                        loading="lazy"
+                      />
+                    </Link>
                   </div>
 
                   {/* Product Information - derived strictly from API */}
                   <div className="product-info">
-                    <h3 className="product-name">{product.name}</h3>
+                    <h3 className="product-name">
+                      <Link
+                        to={`/product-details/${product.slug}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {product.name}
+                      </Link>
+                    </h3>
                     {product.subtitle && (
                       <p className="product-subtitle">{product.subtitle}</p>
                     )}
@@ -396,11 +403,11 @@ const Products = () => {
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
                   >
-                    <circle cx="32" cy="32" r="32" fill="#EBF2E4" />
-                    <circle cx="32" cy="32" r="25" fill="#4d5a3c" />
+                    <circle cx="32" cy="32" r="32" fill="#F1CBBE" />
+                    <circle cx="32" cy="32" r="25" fill="#7E3540" />
                     <path
                       d="M22 32.5L29 39.5L42 26.5"
-                      stroke="#FFFBF5"
+                      stroke="#FFF7F1"
                       strokeWidth="3.6"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -627,6 +634,43 @@ const Products = () => {
                       ) : (
                         'Place Order'
                       )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="order-modal-cart-btn"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '10px 16px',
+                        borderRadius: '6px',
+                        background: '#FAECE0',
+                        color: '#7E3540',
+                        border: '1px solid #F1CBBE',
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        marginTop: '10px',
+                      }}
+                      onClick={() => {
+                        addToCart({
+                          id: selectedProduct.id,
+                          name: selectedProduct.name,
+                          title: selectedProduct.name,
+                          price: selectedProduct.price,
+                          image: selectedProduct.image,
+                          quantity,
+                          slug: selectedProduct.slug,
+                        })
+                        handleCloseModal()
+                        navigate('/cart')
+                      }}
+                    >
+                      <ShoppingCart size={16} />
+                      <span>Add to Cart &amp; View Cart</span>
                     </button>
                   </form>
                 </div>

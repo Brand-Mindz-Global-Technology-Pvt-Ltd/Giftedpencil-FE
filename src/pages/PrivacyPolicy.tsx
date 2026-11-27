@@ -20,7 +20,7 @@ const PrivacyPolicy = () => {
           <span className="policy-breadcrumb-current">Privacy Policy</span>
         </div>
 
-        <article className="policy-container">
+        <article className="policy-container reveal-on-scroll">
           <header className="policy-header">
             <span className="policy-brand-tag">The Gifted Pencil</span>
             <h1 className="policy-title">PRIVACY POLICY</h1>

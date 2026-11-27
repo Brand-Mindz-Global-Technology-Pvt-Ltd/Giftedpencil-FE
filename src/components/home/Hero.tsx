@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import heroBannerImg from '../../assets/Home/Hero-banner.png'
 
 const Hero = () => {
@@ -5,12 +6,17 @@ const Hero = () => {
     <section
       id="hero"
       className="hero-banner"
-      style={{ backgroundImage: `url(${heroBannerImg})` }}
       aria-label="The Gifted Pencil Hero Banner"
     >
+      <div
+        className="parallax-bg-layer"
+        style={{ backgroundImage: `url(${heroBannerImg})` }}
+        data-parallax-speed="-0.22"
+        aria-hidden="true"
+      />
       <div className="hero-banner-inner">
         <div className="hero-banner-content">
-          <div className="hero-badge">
+          <div className="hero-badge" data-parallax-speed="-0.06">
             <span className="hero-badge-line" aria-hidden="true" />
             <span className="hero-badge-text">JOURNAL · REFLECT · GROW</span>
             <span className="hero-badge-line" aria-hidden="true" />
@@ -20,7 +26,7 @@ const Hero = () => {
             Every Journey Begins With a{' '}
             <span className="hero-heading-script">
               Thought.
-              <span className="hero-heart" aria-hidden="true">
+              <span className="hero-heart" data-parallax-speed="-0.10" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   width="26"
@@ -41,9 +47,9 @@ const Hero = () => {
           </p>
 
           <div className="hero-cta-wrapper">
-            <a href="#" className="hero-cta-btn" onClick={(e) => e.preventDefault()}>
+            <Link to="/shop" className="hero-cta-btn">
               Explore Journals &rarr;
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Poppins";
+  src: url("./assets/Fonts/Poppins-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   Scoped Tailwind Preflight & Resets for Admin Panel
+   Provides complete Tailwind base reset for Admin elements inside .admin-root
+   without affecting Customer Storefront elements.
+   ========================================================================== */
+.admin-root {
+  --admin-burgundy: #7E3540;
+  --admin-burgundy-hover: #662A33;
+  --admin-cream: #FFF7F1;
+  --admin-cream-secondary: #FAECE0;
+  --admin-bg: #FAF7F5;
+  --admin-text-primary: #1E293B;
+  --admin-text-muted: #64748B;
+  --admin-border: #FAECE0;
+  font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+  color: #1E293B;
+  background-color: #FAF7F5;
+}
+
+.admin-root *,
+.admin-root *::before,
+.admin-root *::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: #e5e7eb;
+}
+
+.admin-root hr {
+  height: 0;
+  color: inherit;
+  border-top-width: 1px;
+}
+
+.admin-root h1,
+.admin-root h2,
+.admin-root h3,
+.admin-root h4,
+.admin-root h5,
+.admin-root h6 {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+
+.admin-root p {
+  margin: 0;
+}
+
+.admin-root a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+.admin-root b,
+.admin-root strong {
+  font-weight: bolder;
+}
+
+.admin-root button,
+.admin-root input,
+.admin-root optgroup,
+.admin-root select,
+.admin-root textarea {
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-root button,
+.admin-root select {
+  text-transform: none;
+}
+
+.admin-root button,
+.admin-root [type='button'],
+.admin-root [type='reset'],
+.admin-root [type='submit'] {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+
+.admin-root input::placeholder,
+.admin-root textarea::placeholder {
+  opacity: 1;
+  color: #9ca3af;
+}
+
+.admin-root button,
+.admin-root [role="button"] {
+  cursor: pointer;
+}
+
+.admin-root :disabled {
+  cursor: default;
+}
+
+.admin-root img,
+.admin-root svg,
+.admin-root video,
+.admin-root canvas,
+.admin-root audio,
+.admin-root iframe,
+.admin-root embed,
+.admin-root object {
+  display: block;
+  vertical-align: middle;
+}
+
+.admin-root img,
+.admin-root video {
+  max-width: 100%;
+  height: auto;
+}
+
+.admin-root ol,
+.admin-root ul,
+.admin-root menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-root textarea {
+  resize: vertical;
+}
+
+/* Scrollbar customization for Admin Panel */
+.admin-root ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.admin-root ::-webkit-scrollbar-track {
+  background: #FAF7F5; 
+  border-radius: 10px;
+}
+
+.admin-root ::-webkit-scrollbar-thumb {
+  background-color: #CBD5E1; 
+  border-radius: 10px;
+  border: 2px solid #FAF7F5;
+}
+
+.admin-root ::-webkit-scrollbar-thumb:hover {
+  background-color: #94A3B8; 
+}
+
+.admin-root,
+.admin-root * {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #FAF7F5;
+}
+
+/* ==========================================================================
+   Admin Panel Motion & Animation Enhancements (Isolated to .admin-root)
+   ========================================================================== */
+
+@keyframes adminFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-page-entrance {
+  animation: adminFadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Admin Dashboard Cards, Stats & Sections subtle hover elevation */
+.admin-root .bg-white.rounded-xl,
+.admin-root .bg-white.rounded-lg,
+.admin-root .bg-white.rounded-2xl {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.admin-root .bg-white.rounded-xl:hover,
+.admin-root .bg-white.rounded-lg:hover,
+.admin-root .bg-white.rounded-2xl:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+/* Subtle table row hover highlight */
+.admin-root table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+/* Admin Sidebar navigation link transitions */
+.admin-root aside nav a,
+.admin-root aside nav button {
+  transition: background-color 150ms ease, transform 150ms ease, color 150ms ease;
+}
+
+.admin-root aside nav a:hover,
+.admin-root aside nav button:hover {
+  transform: translateX(2px);
+}
+
+/* Reduced Motion Support for Admin */
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-entrance {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .admin-root * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}

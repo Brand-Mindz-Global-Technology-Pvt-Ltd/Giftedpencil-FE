@@ -68,7 +68,7 @@ const WhyChoose = () => {
         {/* Left Side: Olive Card & Benefits Columns */}
         <div className="why-left-content">
           {/* Olive Green Feature Card */}
-          <div className="why-card-olive">
+          <div className="why-card-olive reveal-slide-left" data-parallax-speed="-0.06">
             <h2 className="why-card-title">
               Why Choose
               <br />
@@ -143,11 +143,13 @@ const WhyChoose = () => {
 
         {/* Right Side: Prominent Rounded Image */}
         <div className="why-right-image-wrap">
-          <div className="why-image-container">
+          <div className="why-image-container reveal-scale">
             <img
               src={whyImage}
               alt="Write. Dream. Grow. journal with pen"
               className="why-image"
+              data-parallax-speed="0.12"
+              data-parallax-scale="0.03"
               loading="lazy"
             />
           </div>

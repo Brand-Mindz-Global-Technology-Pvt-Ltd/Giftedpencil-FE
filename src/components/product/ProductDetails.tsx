@@ -1,38 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Heart, Minus, Plus, ChevronRight } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { Heart, Minus, Plus, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
 import Layout from '../common/Layout/Layout'
-import productImage1 from '../../assets/product/product-1.png'
-import productImage2 from '../../assets/product/product-2.png'
-import productImage3 from '../../assets/product/product-3.png'
-import productImage4 from '../../assets/product/product-4.png'
+import { useCart } from '../../context/CartContext'
+import { useWishlist } from '../../context/WishlistContext'
+import { useAuth } from '../../context/AuthContext'
+import { productsApi, type ProductData } from '../../services/api'
+import { resolveProductImages } from '../../utils/productImages'
 
-interface ProductConfig {
-  slug: string
-  name: string
-  subtitle: string
-  eyebrow: string
-  mainImage: string
-}
-
-const PRODUCTS_MAP: Record<string, ProductConfig> = {
-  'the-gifted-pencil': {
-    slug: 'the-gifted-pencil',
-    name: 'The Gifted Pencil',
-    subtitle: 'Make Every Page Meaningful',
-    eyebrow: 'A little space for big dreams',
-    mainImage: productImage1,
-  },
-  'dream-big-journal': {
-    slug: 'dream-big-journal',
-    name: 'The Gifted Pencil',
-    subtitle: 'Make Every Page Meaningful',
-    eyebrow: 'A little space for big dreams',
-    mainImage: productImage1,
-  },
-}
-
-const allProductImages = [productImage1, productImage2, productImage3, productImage4]
 const detailTabs = ['Description', 'Features', 'Additional information'] as const
 type DetailTab = (typeof detailTabs)[number]
 
@@ -50,42 +25,206 @@ const ProductDetailsContent = ({
   onAddToCart,
   onBuyNow,
 }: ProductDetailsContentProps) => {
-  const currentProduct = (slug && PRODUCTS_MAP[slug]) || PRODUCTS_MAP['dream-big-journal']
+  const navigate = useNavigate()
+  const { addToCart } = useCart()
+  const { isInWishlist, toggleWishlist } = useWishlist()
+  const { isAuthenticated } = useAuth()
 
-  // Gallery displays the current product's image first, followed by the other product views
-  const galleryImages = [
-    currentProduct.mainImage,
-    ...allProductImages.filter((img) => img !== currentProduct.mainImage),
-  ]
+  const [product, setProduct] = useState<ProductData | null>(null)
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [activeTab, setActiveTab] = useState<DetailTab>('Description')
   const [actionMessage, setActionMessage] = useState('')
 
+  const targetIdentifier = slug || 'the-gifted-pencil'
+
+  const [reloadKey, setReloadKey] = useState<number>(0)
+  const handleRetry = () => {
+    setReloadKey((prev) => prev + 1)
+  }
+
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [])
+    let ignore = false
+
+    const loadData = async () => {
+      setIsLoading(true)
+      setFetchError(null)
+      try {
+        const data = await productsApi.getProductByIdOrSlug(targetIdentifier)
+        if (ignore) return
+        setProduct(data)
+        const resolvedGallery = resolveProductImages(data.images, data.image)
+        setGalleryImages(resolvedGallery)
+        setSelectedImage(0)
+      } catch (err: unknown) {
+        if (ignore) return
+        const msg =
+          err instanceof Error ? err.message : 'Unable to find or load the requested product.'
+        setFetchError(msg)
+      } finally {
+        if (!ignore) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadData()
+    return () => {
+      ignore = true
+    }
+  }, [targetIdentifier, reloadKey])
+
+  const isWishlisted = product ? isInWishlist(product.slug || product.id) : false
 
   const handleAddToCart = () => {
+    if (!product) return
+
     if (onAddToCart) {
       onAddToCart(quantity)
       setActionMessage('')
       return
     }
 
-    setActionMessage('Cart integration is not available yet.')
+    addToCart({
+      id: product.id,
+      name: product.name,
+      subtitle: product.subtitle || 'Make Every Page Meaningful',
+      price: product.price,
+      quantity,
+      image: galleryImages[0] || '',
+      slug: product.slug,
+    })
+    setActionMessage(
+      `Added ${quantity} ${quantity === 1 ? 'copy' : 'copies'} of "${product.name}" to your cart!`
+    )
+    setTimeout(() => setActionMessage(''), 3500)
   }
 
   const handleBuyNow = () => {
+    if (!product) return
+
     if (onBuyNow) {
       onBuyNow(quantity)
       setActionMessage('')
       return
     }
 
-    setActionMessage('Checkout integration is not available yet.')
+    addToCart({
+      id: product.id,
+      name: product.name,
+      subtitle: product.subtitle || 'Make Every Page Meaningful',
+      price: product.price,
+      quantity,
+      image: galleryImages[0] || '',
+      slug: product.slug,
+    })
+    navigate('/cart')
+  }
+
+  const handleToggleWishlist = () => {
+    if (!product) return
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/product-details/${product.slug || product.id}` } })
+      return
+    }
+
+    toggleWishlist({
+      id: product.slug || product.id,
+      title: product.name,
+      description: product.subtitle || product.description,
+      price: product.price,
+      image: galleryImages[0] || '',
+      slug: product.slug,
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div
+          className="product-details-page"
+          style={{
+            minHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#7E3540',
+          }}
+        >
+          <Loader2 size={40} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ marginTop: '16px', fontSize: '16px', fontWeight: 500 }}>
+            Loading product details...
+          </p>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (fetchError || !product) {
+    return (
+      <Layout>
+        <div className="product-details-page" style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <div
+            style={{
+              maxWidth: '500px',
+              margin: '0 auto',
+              padding: '40px 24px',
+              borderRadius: '16px',
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#991B1B',
+            }}
+          >
+            <AlertCircle size={40} color="#DC2626" style={{ margin: '0 auto 16px' }} />
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>
+              Product Not Found
+            </h2>
+            <p style={{ fontSize: '14px', color: '#7F1D1D', marginBottom: '24px' }}>
+              {fetchError || "The product you're looking for does not exist or is currently unavailable."}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={handleRetry}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: '#7E3540',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Try Again
+              </button>
+              <Link
+                to="/shop"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: '#fff',
+                  color: '#7E3540',
+                  border: '1px solid #7E3540',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                }}
+              >
+                Back to Shop
+              </Link>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -96,57 +235,86 @@ const ProductDetailsContent = ({
             Home
           </Link>
           <ChevronRight size={14} aria-hidden="true" />
-          <span>Shop</span>
+          <Link to="/shop" className="product-details-breadcrumb-link">
+            Shop
+          </Link>
           <ChevronRight size={14} aria-hidden="true" />
-          <span className="product-details-breadcrumb-current">{currentProduct.name}</span>
+          <span className="product-details-breadcrumb-current">{product.name}</span>
         </div>
 
         <section className="product-details-main" aria-labelledby="product-details-title">
-          <div className="product-details-gallery">
-            <div className="product-details-image-frame">
-              <span className="product-details-image-caption">The Gifted Pencil</span>
+          <div className="product-details-gallery reveal-scale">
+            <div className="product-details-image-frame" data-parallax-speed="0.06">
+              <span className="product-details-image-caption" data-parallax-speed="-0.04">The Gifted Pencil</span>
               <img
                 className="product-details-main-image"
-                src={galleryImages[selectedImage]}
-                alt={`${currentProduct.name} view ${selectedImage + 1}`}
+                src={galleryImages[selectedImage] || galleryImages[0]}
+                alt={`${product.name} view ${selectedImage + 1}`}
               />
-              <span className="product-details-image-index">
-                {String(selectedImage + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}
-              </span>
+              {galleryImages.length > 1 && (
+                <span className="product-details-image-index">
+                  {String(selectedImage + 1).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}
+                </span>
+              )}
             </div>
 
-            <div className="product-details-thumbnails" aria-label="Product images">
-              {galleryImages.map((image, index) => (
-                <button
-                  key={image}
-                  type="button"
-                  className={`product-details-thumbnail${selectedImage === index ? ' is-selected' : ''}`}
-                  onClick={() => setSelectedImage(index)}
-                  aria-label={`Show product image ${index + 1}`}
-                  aria-pressed={selectedImage === index}
-                >
-                  <img src={image} alt="" />
-                </button>
-              ))}
-            </div>
+            {galleryImages.length > 1 && (
+              <div className="product-details-thumbnails" aria-label="Product images">
+                {galleryImages.map((image, index) => (
+                  <button
+                    key={`${image}-${index}`}
+                    type="button"
+                    className={`product-details-thumbnail${selectedImage === index ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedImage(index)}
+                    aria-label={`Show product image ${index + 1}`}
+                    aria-pressed={selectedImage === index}
+                  >
+                    <img src={image} alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="product-details-information">
-            <p className="product-details-eyebrow">{currentProduct.eyebrow}</p>
-            <h1 className="product-details-title" id="product-details-title">
-              {currentProduct.name}
-            </h1>
-            <p className="product-details-price">₹299</p>
-            <p className="product-details-summary">
-              A journal for your thoughts, dreams and beautiful memories.
+          <div className="product-details-information reveal-slide-right">
+            <p className="product-details-eyebrow" data-parallax-speed="-0.04">
+              {product.eyebrow || 'A little space for big dreams'}
             </p>
+            <h1 className="product-details-title" id="product-details-title">
+              {product.name}
+            </h1>
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', margin: '16px 0 12px' }}>
+              <p className="product-details-price" style={{ margin: 0 }}>₹{product.price.toLocaleString()}</p>
+              {product.original_price != null && product.original_price > product.price && (
+                <span style={{ textDecoration: 'line-through', color: '#9CA3AF', fontSize: '1.15rem', fontWeight: 500 }}>
+                  ₹{product.original_price.toLocaleString()}
+                </span>
+              )}
+            </div>
+
+            {product.subtitle && (
+              <p className="product-details-summary">
+                {product.subtitle}
+              </p>
+            )}
 
             <div className="product-details-divider" />
 
-            <div className="product-details-edition">
-              <span className="product-details-field-label">Edition</span>
-              <span className="product-details-placeholder">Details to be confirmed</span>
-            </div>
+            {product.subtitle && (
+              <div className="product-details-edition">
+                <span className="product-details-field-label">Edition</span>
+                <span className="product-details-placeholder">
+                  {product.subtitle}
+                </span>
+              </div>
+            )}
+
+            {product.stock !== undefined && (
+              <p style={{ fontSize: '13px', fontWeight: 600, color: product.stock > 0 ? '#16A34A' : '#DC2626', margin: '8px 0 16px' }}>
+                {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
+              </p>
+            )}
 
             <div className="product-details-purchase-row">
               <div className="product-details-quantity" aria-label="Quantity selector">
@@ -154,7 +322,7 @@ const ProductDetailsContent = ({
                   type="button"
                   onClick={() => setQuantity((current) => Math.max(1, current - 1))}
                   aria-label="Decrease quantity"
-                  disabled={quantity <= 1}
+                  disabled={quantity <= 1 || (product.stock !== undefined && product.stock <= 0)}
                 >
                   <Minus size={16} aria-hidden="true" />
                 </button>
@@ -165,6 +333,7 @@ const ProductDetailsContent = ({
                   type="button"
                   onClick={() => setQuantity((current) => current + 1)}
                   aria-label="Increase quantity"
+                  disabled={product.stock !== undefined && quantity >= product.stock}
                 >
                   <Plus size={16} aria-hidden="true" />
                 </button>
@@ -172,7 +341,7 @@ const ProductDetailsContent = ({
               <button
                 type="button"
                 className={`product-details-wishlist${isWishlisted ? ' is-active' : ''}`}
-                onClick={() => setIsWishlisted((current) => !current)}
+                onClick={handleToggleWishlist}
                 aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                 aria-pressed={isWishlisted}
               >
@@ -189,15 +358,17 @@ const ProductDetailsContent = ({
                 type="button"
                 className="product-details-add-button"
                 onClick={handleAddToCart}
+                disabled={product.stock !== undefined && product.stock <= 0}
               >
-                Add to cart
+                {product.stock !== undefined && product.stock <= 0 ? 'Out of stock' : 'Add to cart'}
               </button>
               <button
                 type="button"
                 className="product-details-buy-button"
                 onClick={handleBuyNow}
+                disabled={product.stock !== undefined && product.stock <= 0}
               >
-                Buy now
+                {product.stock !== undefined && product.stock <= 0 ? 'Out of stock' : 'Buy now'}
               </button>
             </div>
             {actionMessage && (
@@ -207,7 +378,7 @@ const ProductDetailsContent = ({
             )}
 
             <p className="product-details-note">
-              Product pricing and edition details will be updated when confirmed.
+              Free delivery on select orders. Standard dispatch within 2-4 business days.
             </p>
           </div>
         </section>
@@ -218,50 +389,77 @@ const ProductDetailsContent = ({
             <h2>Make room for what matters.</h2>
           </div>
 
-          <div
-            className="product-details-tabs"
-            role="tablist"
-            aria-label="Product information"
-          >
-            {detailTabs.map((tab) => (
-              <button
-                key={tab}
-                id={`product-details-tab-${detailTabs.indexOf(tab)}`}
-                type="button"
-                role="tab"
-                className={`product-details-tab${activeTab === tab ? ' is-active' : ''}`}
-                aria-selected={activeTab === tab}
-                aria-controls="product-details-tab-panel"
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-          <div
-            className="product-details-tab-panel"
-            id="product-details-tab-panel"
-            role="tabpanel"
-            aria-labelledby={`product-details-tab-${detailTabs.indexOf(activeTab)}`}
-          >
-            {activeTab === 'Description' && (
-              <div className="product-details-tab-text">
-                <p>
-                  The Gifted Pencil is created to make journaling a simple and meaningful part of everyday life. Whether you are a child discovering your imagination, an adult working towards personal goals, or an expecting mother capturing the beautiful moments of pregnancy, this journal gives you a space to express yourself in your own way.
-                </p>
-                <p>
-                  Fill its pages with thoughts, ideas, dreams, gratitude, little achievements and special memories. There is no perfect way to journal and no pressure to write every day. Just pick up your pencil and begin wherever you are.
-                </p>
-                <p>
-                  Because sometimes, writing down a thought is the first step towards understanding it, believing in it and making it happen.
-                </p>
-              </div>
-            )}
-            {activeTab === 'Features' && <p>Product features to be added.</p>}
-            {activeTab === 'Additional information' && (
-              <p>Additional product information to be added.</p>
-            )}
-          </div>
+          {(() => {
+            const availableTabs: DetailTab[] = ['Description'];
+            if (product.features && product.features.length > 0) {
+              availableTabs.push('Features');
+            }
+            if (product.specifications && Object.keys(product.specifications).length > 0) {
+              availableTabs.push('Additional information');
+            }
+
+            const currentTab = availableTabs.includes(activeTab) ? activeTab : 'Description';
+
+            return (
+              <>
+                {availableTabs.length > 1 && (
+                  <div
+                    className="product-details-tabs"
+                    role="tablist"
+                    aria-label="Product information"
+                  >
+                    {availableTabs.map((tab) => (
+                      <button
+                        key={tab}
+                        id={`product-details-tab-${tab}`}
+                        type="button"
+                        role="tab"
+                        className={`product-details-tab${currentTab === tab ? ' is-active' : ''}`}
+                        aria-selected={currentTab === tab}
+                        aria-controls="product-details-tab-panel"
+                        onClick={() => setActiveTab(tab)}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  className="product-details-tab-panel"
+                  id="product-details-tab-panel"
+                  role="tabpanel"
+                  aria-labelledby={`product-details-tab-${currentTab}`}
+                >
+                  {currentTab === 'Description' && (
+                    <div className="product-details-tab-text">
+                      <p>{product.description}</p>
+                    </div>
+                  )}
+
+                  {currentTab === 'Features' && product.features && product.features.length > 0 && (
+                    <div className="product-details-tab-text">
+                      {product.features.map((feature, idx) => (
+                        <p key={idx}>• {feature}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {currentTab === 'Additional information' &&
+                    product.specifications &&
+                    Object.keys(product.specifications).length > 0 && (
+                      <div className="product-details-tab-text">
+                        {Object.entries(product.specifications).map(([key, val]) => (
+                          <p key={key}>
+                            <strong>{key}:</strong> {val}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                </div>
+              </>
+            );
+          })()}
         </section>
       </div>
     </Layout>
